@@ -14,11 +14,11 @@ import ubiq_security.fpe as ubiqfpe
 # Prerequisite: define bucket name and file name. An example of RAW_DATA.csv exists in the etl_example folder.
 bucket_name="ian-ubiq-test-bucket"
 file_name="RAW_DATA.csv"
-encrypt_full=False
+encrypt_full=True
 encrypt_fields=True
 
 # Initialized with credentials from either ENV variables or ~/.ubiq/credentials
-credentials = ubiq.configCredentials()
+credentials = ubiq.configCredentials(profile='POC ETL App-1')
 
 s3 = boto3.client('s3')
 
@@ -46,10 +46,10 @@ if encrypt_fields:
         print(row['id'], row['username'])
 
         # TODO: Format Preserving Encryption, for now regular encryption.
-        row['full_name_sensitive'] = ubiqfpe.Encrypt(credentials, 'FULL_NAME', row['full_name_sensitive'])
-        row['email_sensitive'] = ubiqfpe.Encrypt(credentials, 'EMAIL', row['email_sensitive'], None)
-        row['phone_number_sensitive'] = ubiqfpe.Encrypt(credentials, 'PHONE', row['phone_number_sensitive'])
-        row['ssn_sensitive'] = ubiqfpe.Encrypt(credentials, 'SSN', row['ssn_sensitive'])
+        row['full_name_sensitive'] = ubiqfpe.Encrypt(credentials, 'FULL_NAME_ETL', row['full_name_sensitive'])
+        row['email_sensitive'] = ubiqfpe.Encrypt(credentials, 'EMAIL_ETL', row['email_sensitive'], None)
+        row['phone_number_sensitive'] = ubiqfpe.Encrypt(credentials, 'PHONE_ETL', row['phone_number_sensitive'])
+        row['ssn_sensitive'] = ubiqfpe.Encrypt(credentials, 'SSN_ETL', row['ssn_sensitive'])
         
         transformed_rows.append(list(row.values()))
 
