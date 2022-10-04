@@ -8,9 +8,14 @@ import csv
 import io
 import random
 import ubiq_security as ubiq
+# pipenv install git+https://gitlab.com/ubiqsecurity/ubiq-python.git@feature/fpe#egg=ubiq-security
+import ubiq_security.fpe as ubiqfpe
 
-bucket_name="ubiq-test-bucket"
+# Prerequisite: define bucket name and file name. An example of RAW_DATA.csv exists in the etl_example folder.
+bucket_name="ian-ubiq-test-bucket"
 file_name="RAW_DATA.csv"
+encrypt_full=False
+encrypt_fields=True
 
 # Initialized with credentials from either ENV variables or ~/.ubiq/credentials
 credentials = ubiq.configCredentials()
@@ -22,39 +27,41 @@ response = s3.get_object(Bucket=bucket_name, Key=file_name)
 full_doc = response['Body'].read().decode('utf-8')
 
 # Encrypt the whole document at once
-print('Encrypting full document')
-full_doc_encrypted = ubiq.encrypt(credentials, full_doc.encode())
-print('Uploading full encrypted doc to S3')
-s3.upload_fileobj(io.BytesIO(full_doc_encrypted), bucket_name, 'FULL_ENCRYPT.csv')
-print('Upload complete')
+if encrypt_full:
+    print('Encrypting full document')
+    full_doc_encrypted = ubiq.encrypt(credentials, full_doc.encode())
+    print('Uploading full encrypted doc to S3')
+    s3.upload_fileobj(io.BytesIO(full_doc_encrypted), bucket_name, 'FULL_ENCRYPT.csv')
+    print('Upload complete')
 
 # Encrypt specific data
-print('Encrypting line by line')
-lines = full_doc.splitlines(True)
-transformed_rows = []
-headers = lines[0].split(',')
+if encrypt_fields:
+    print('Encrypting line by line')
+    lines = full_doc.splitlines(True)
+    transformed_rows = []
+    headers = lines[0].split(',')
 
-reader = csv.DictReader(lines)
-for row in reader: 
-    print(row['id'], row['username'])
+    reader = csv.DictReader(lines)
+    for row in reader: 
+        print(row['id'], row['username'])
 
-    # TODO: Format Preserving Encryption, for now regular encryption.
-    row['email_sensitive'] = ubiq.encrypt(credentials, row['email_sensitive'].encode())
-    row['full_name_sensitive'] = ubiq.encrypt(credentials, row['full_name_sensitive'].encode())
-    row['phone_number_sensitive'] = ubiq.encrypt(credentials, row['phone_number_sensitive'].encode())
-    row['ssn_sensitive'] = ubiq.encrypt(credentials, row['ssn_sensitive'].encode())
-    
-    transformed_rows.append(list(row.values()))
+        # TODO: Format Preserving Encryption, for now regular encryption.
+        row['full_name_sensitive'] = ubiqfpe.Encrypt(credentials, 'FULL_NAME', row['full_name_sensitive'])
+        row['email_sensitive'] = ubiqfpe.Encrypt(credentials, 'EMAIL', row['email_sensitive'], None)
+        row['phone_number_sensitive'] = ubiqfpe.Encrypt(credentials, 'PHONE', row['phone_number_sensitive'])
+        row['ssn_sensitive'] = ubiqfpe.Encrypt(credentials, 'SSN', row['ssn_sensitive'])
+        
+        transformed_rows.append(list(row.values()))
 
-print('Rows transformed, encoding to upload.')
-# Builing output object for S3
-csv_buffer = io.StringIO()
-writer = csv.writer(csv_buffer)
-writer.writerow(headers)
-writer.writerows(transformed_rows)
-byte_buff = io.BytesIO(csv_buffer.getvalue().encode())
-print('Uploading to S3')
-s3.upload_fileobj(byte_buff, bucket_name, 'TRANSFORMED_DATA.csv')
-print('Upload complete')
+    print('Rows transformed, encoding to upload.')
+    # Builing output object for S3
+    csv_buffer = io.StringIO()
+    writer = csv.writer(csv_buffer)
+    writer.writerow(headers)
+    writer.writerows(transformed_rows)
+    byte_buff = io.BytesIO(csv_buffer.getvalue().encode())
+    print('Uploading to S3')
+    s3.upload_fileobj(byte_buff, bucket_name, 'TRANSFORMED_DATA.csv')
+    print('Upload complete')
 
 print('Done')
