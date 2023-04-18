@@ -5,7 +5,7 @@ name = "pypi"
 
 [packages]
 boto3 = "*"
-ubiq-security = "*"
+ubiq-security = {ref = "feature/fpe", git = "https://gitlab.com/ubiqsecurity/ubiq-python.git"}
 
 [dev-packages]
 
